@@ -1,6 +1,5 @@
 "use client";
-import { supabase } from '@/lib/supabaseClient';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -10,7 +9,7 @@ import Button from '@/components/UI/Button';
 import QRScannerZXing from '@/components/QRScannerZXing';
 import { validateScannedToken, getTokenStats, TokenValidationResult } from '@/lib/tokenUtils';
 
-export default function ScanPage() {
+function ScanContent() {
   const [isScanning, setIsScanning] = useState(true);
   const [result, setResult] = useState<TokenValidationResult | null>(null);
   const [stats, setStats] = useState({ activeTokens: 0, todayScans: 0, successRate: 0 });
@@ -262,5 +261,17 @@ export default function ScanPage() {
         </Card>
       </BaseLayout>
     </ProtectedRoute>
+  );
+}
+
+export default function ScanPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-amber-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-yellow-500"></div>
+      </div>
+    }>
+      <ScanContent />
+    </Suspense>
   );
 }

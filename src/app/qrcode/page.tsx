@@ -1,6 +1,5 @@
 "use client";
-import { supabase } from '@/lib/supabaseClient';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -9,7 +8,7 @@ import Card from '@/components/UI/Card';
 import { createUserToken, getUserActiveToken, TokenData } from '@/lib/tokenUtils';
 import QRCode from 'qrcode';
 
-export default function QRCodePage() {
+function QRCodeContent() {
   const [timeLeft, setTimeLeft] = useState(30);
   const [tokenData, setTokenData] = useState<TokenData | null>(null);
   const [qrCodeImage, setQrCodeImage] = useState<string>('');
@@ -289,5 +288,17 @@ export default function QRCodePage() {
       </Card>
     </BaseLayout>
     </ProtectedRoute>
+  );
+}
+
+export default function QRCodePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
+      </div>
+    }>
+      <QRCodeContent />
+    </Suspense>
   );
 }
