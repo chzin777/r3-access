@@ -6,7 +6,8 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import BaseLayout from '@/components/Layout/BaseLayout';
 import Card from '@/components/UI/Card';
 import Button from '@/components/UI/Button';
-import QRScannerSimple from '@/components/QRScannerSimple';
+import dynamic from 'next/dynamic';
+import { BarcodeStringFormat } from '@/components/BarcodeStringFormat';
 import { validateScannedToken, getTokenStats, TokenValidationResult } from '@/lib/tokenUtils';
 
 function ScanContent() {
@@ -14,6 +15,8 @@ function ScanContent() {
   const [result, setResult] = useState<TokenValidationResult | null>(null);
   const [stats, setStats] = useState({ activeTokens: 0, todayScans: 0, successRate: 0 });
   const [scannerKey, setScannerKey] = useState(0);
+  // BarcodeScanner precisa ser carregado só no client
+  const BarcodeScanner = dynamic(() => import('@/components/BarcodeScanner').then(mod => mod.BarcodeScanner), { ssr: false });
   const searchParams = useSearchParams();
   const { user } = useAuth();
   
@@ -112,11 +115,38 @@ function ScanContent() {
           {/* Scanner Area */}
           <div className="mb-8">
             <div className="relative w-full h-96 mx-auto">
-              {/* QRScanner com react-webcam integrado - sempre ativo */}
-              <QRScannerSimple
+              {/* BarcodeScanner com ZXing + react-webcam */}
+              <BarcodeScanner
                 key={scannerKey}
-                onQRCodeDetected={handleScanSuccess}
-                onError={handleScanError}
+                onUpdate={(err, result) => {
+                  if (err) {
+                    if (typeof err === 'string') {
+                      handleScanError(err);
+                    } else if (err instanceof DOMException) {
+                      handleScanError(err.message);
+                    } else if (err && typeof err === 'object' && 'message' in err) {
+                      handleScanError((err as any).message);
+                    } else {
+                      handleScanError('Erro desconhecido');
+                    }
+                  } else if (result && result.getText) {
+                    handleScanSuccess(result.getText());
+                  }
+                }}
+                onError={(err) => {
+                  if (typeof err === 'string') {
+                    handleScanError(err);
+                  } else if (err instanceof DOMException) {
+                    handleScanError(err.message);
+                  } else {
+                    handleScanError('Erro desconhecido');
+                  }
+                }}
+                formats={[BarcodeStringFormat.QR_CODE]}
+                width={"100%"}
+                height={"100%"}
+                facingMode="environment"
+                delay={500}
               />
             </div>
           </div>

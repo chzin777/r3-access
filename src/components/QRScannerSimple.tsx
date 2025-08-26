@@ -174,14 +174,38 @@ export default function QRScannerSimple({ onQRCodeDetected, onError }: QRScanner
       <div className="w-full h-full bg-red-50 rounded-xl flex items-center justify-center p-4">
         <div className="text-center">
           <div className="text-red-500 mb-2">❌ Erro na câmera</div>
-          <div className="text-red-700 text-sm mb-4">{error}</div>
-          <div className="space-y-2">
+          <div className="text-red-700 text-sm mb-2">{error}</div>
+          <div className="text-gray-700 text-xs mb-4">
+            <div>Possíveis causas:</div>
+            <ul className="list-disc list-inside text-left mx-auto max-w-xs">
+              <li>O site precisa ser acessado via <b>HTTPS</b></li>
+              <li>Feche outros apps que usam a câmera</li>
+              <li>Permita o acesso à câmera nas configurações do navegador</li>
+              <li>Se estiver no iPhone, use o Safari</li>
+              <li>Se estiver no Android, use o Chrome</li>
+            </ul>
+          </div>
+          <div className="space-y-2 flex flex-col items-center">
             <button
               onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 mr-2"
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
             >
               Recarregar
             </button>
+            {devices.length > 1 && (
+              <button
+                onClick={() => {
+                  const currentIndex = devices.findIndex(d => d.deviceId === deviceId);
+                  const nextIndex = (currentIndex + 1) % devices.length;
+                  setDeviceId(devices[nextIndex].deviceId);
+                  setIsReady(false);
+                  setError('');
+                }}
+                className="px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-800"
+              >
+                🔄 Tentar outra câmera
+              </button>
+            )}
             <button
               onClick={testQRDetection}
               className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
