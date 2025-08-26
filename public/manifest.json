@@ -1,0 +1,27 @@
+{
+  "name": "R3 Access - Sistema de Controle de Acesso",
+  "short_name": "R3 Access",
+  "description": "Sistema moderno de controle de acesso com QR Code para a R3 Suprimentos",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#3b82f6",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["productivity", "security", "business"],
+  "lang": "pt-BR",
+  "dir": "ltr"
+}
