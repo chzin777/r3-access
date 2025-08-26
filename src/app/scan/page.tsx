@@ -145,9 +145,7 @@ function ScanContent() {
                 formats={[BarcodeStringFormat.QR_CODE]}
                 width={"100%"}
                 height={"100%"}
-                facingMode="environment"
                 delay={500}
-                // @ts-ignore
                 videoConstraints={{ facingMode: 'environment' }}
               />
             </div>
