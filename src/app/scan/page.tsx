@@ -10,13 +10,13 @@ import dynamic from 'next/dynamic';
 import { BarcodeStringFormat } from '@/components/BarcodeStringFormat';
 import { validateScannedToken, getTokenStats, TokenValidationResult } from '@/lib/tokenUtils';
 
+const BarcodeScanner = dynamic(() => import('@/components/BarcodeScanner').then(mod => mod.BarcodeScanner), { ssr: false });
+
 function ScanContent() {
   const [isScanning, setIsScanning] = useState(true);
   const [result, setResult] = useState<TokenValidationResult | null>(null);
   const [stats, setStats] = useState({ activeTokens: 0, todayScans: 0, successRate: 0 });
   const [scannerKey, setScannerKey] = useState(0);
-  // BarcodeScanner precisa ser carregado só no client
-  const BarcodeScanner = dynamic(() => import('@/components/BarcodeScanner').then(mod => mod.BarcodeScanner), { ssr: false });
   const searchParams = useSearchParams();
   const { user } = useAuth();
   
@@ -117,7 +117,6 @@ function ScanContent() {
             <div className="relative w-full h-96 mx-auto bg-black rounded-xl overflow-hidden flex items-center justify-center">
               {/* BarcodeScanner com ZXing + react-webcam */}
               <BarcodeScanner
-                key={scannerKey}
                 onUpdate={(err, result) => {
                   if (err) {
                     if (typeof err === 'string') {
