@@ -16,7 +16,14 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showFirstAccessModal, setShowFirstAccessModal] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    nome: string;
+    sobrenome: string;
+    cargo: string;
+    tipo: 'admin' | 'porteiro';
+    login: string;
+  } | null>(null);
   const router = useRouter();
   const { login: authLogin, user, isLoading: authLoading } = useAuth();
 
@@ -81,7 +88,14 @@ export default function LoginPage() {
     }
   }
 
-  const proceedToApp = (userData: any) => {
+  const proceedToApp = (userData: {
+    id: string;
+    nome: string;
+    sobrenome: string;
+    cargo: string;
+    tipo: 'admin' | 'porteiro';
+    login: string;
+  }) => {
     // Usar o método login do hook de autenticação
     authLogin({
       id: userData.id,

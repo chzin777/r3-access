@@ -74,7 +74,7 @@ export default function PorteiroPortal() {
               <ul className="text-sm text-blue-700 space-y-1">
                 <li className="flex items-center">
                   <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2"></span>
-                  Clique em "Scanear QRCode"
+                  Clique em &quot;Scanear QRCode&quot;
                 </li>
                 <li className="flex items-center">
                   <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2"></span>
