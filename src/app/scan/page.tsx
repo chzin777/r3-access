@@ -55,15 +55,15 @@ function ScanContent() {
   
   const handleScanSuccess = async (qrData: string) => {
     if (!qrData) return;
-    
     console.log('🔍 QR Code recebido:', qrData);
-    
     try {
       // Validar token usando função real
       const validation = await validateScannedToken(qrData, userId);
       console.log('✅ Resultado da validação:', validation);
       setResult(validation);
-      
+      if (validation.isValid) {
+        setIsScanning(false); // Só pausa se for válido
+      }
       // Atualizar estatísticas
       await loadStats();
     } catch (error) {
@@ -72,6 +72,7 @@ function ScanContent() {
         isValid: false,
         errorMessage: 'Erro ao processar QRCode. Tente novamente.'
       });
+      // Não pausa o scanner em caso de erro/QR inválido
     }
   };
   
@@ -118,6 +119,7 @@ function ScanContent() {
               {/* BarcodeScanner com ZXing + react-webcam */}
               <BarcodeScanner
                 onUpdate={(err, result) => {
+                  if (!isScanning) return; // Scanner só ativo se permitido
                   if (err) {
                     if (typeof err === 'string') {
                       handleScanError(err);
@@ -133,6 +135,7 @@ function ScanContent() {
                   }
                 }}
                 onError={(err) => {
+                  if (!isScanning) return;
                   if (typeof err === 'string') {
                     handleScanError(err);
                   } else if (err instanceof DOMException) {
@@ -158,7 +161,7 @@ function ScanContent() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span className="text-green-700 font-medium">Scanner Simples ativo - Posicione o QRCode na câmera</span>
+                <span className="text-green-700 font-medium">Scanner ativo - Posicione o QRCode na câmera</span>
               </div>
               
               {/* Botão de teste */}
