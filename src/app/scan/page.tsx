@@ -14,7 +14,7 @@ const BarcodeScanner = dynamic(() => import('@/components/BarcodeScanner').then(
 
 function ScanContent() {
   const [isScanning, setIsScanning] = useState(true);
-  const [result, setResult] = useState<TokenValidationResult | null>(null);
+  const [result, setResult] = useState<(TokenValidationResult & { qrData?: string }) | null>(null);
   const [stats, setStats] = useState({ activeTokens: 0, todayScans: 0, successRate: 0 });
   const [scannerKey, setScannerKey] = useState(0);
   const searchParams = useSearchParams();
@@ -70,7 +70,8 @@ function ScanContent() {
       console.error('❌ Erro ao validar token:', error);
       setResult({
         isValid: false,
-        errorMessage: 'Erro ao processar QRCode. Tente novamente.'
+        errorMessage: 'Erro ao processar QRCode. Tente novamente.',
+        qrData
       });
       // Não pausa o scanner em caso de erro/QR inválido
     }
@@ -227,15 +228,17 @@ function ScanContent() {
                   </div>
                 )}
 
-                {/* Error info for invalid access */}
+                {/* Error info for invalid access: mostra se já foi utilizado, expirado ou se o QR for uma URL */}
                 {!result.isValid && (
+                  (result.errorMessage?.includes('já utilizado') ||
+                  result.errorMessage === 'Token expirado' ||
+                  (result.errorMessage === 'Formato de QRCode inválido' && result.qrData && /^https?:\/\//.test(result.qrData)))
+                ) && (
                   <div className="mb-6">
                     <p className="text-red-700 font-bold text-lg mb-2">
-                      {result.errorMessage === 'Token expirado' ? 'QR Code expirado' :
-                       result.errorMessage === 'Token inválido ou expirado' ? 'QR Code inválido' :
-                       result.errorMessage === 'Formato de QRCode inválido' ? 'QR Code inválido' :
-                       result.errorMessage?.includes('já utilizado') ? 'QR Code já utilizado' :
-                       'QR Code inválido'}
+                      {result.errorMessage === 'Token expirado' ? 'QR Code expirado'
+                        : result.errorMessage?.includes('já utilizado') ? 'QR Code já utilizado'
+                        : 'QR Code inválido'}
                     </p>
                     <p className="text-red-600 text-sm">Horário: {new Date().toLocaleTimeString('pt-BR')}</p>
                   </div>
