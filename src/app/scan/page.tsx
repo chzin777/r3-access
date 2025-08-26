@@ -114,7 +114,7 @@ function ScanContent() {
         <Card className="text-center">
           {/* Scanner Area */}
           <div className="mb-8">
-            <div className="relative w-full h-96 mx-auto">
+            <div className="relative w-full h-96 mx-auto bg-black rounded-xl overflow-hidden flex items-center justify-center">
               {/* BarcodeScanner com ZXing + react-webcam */}
               <BarcodeScanner
                 key={scannerKey}
@@ -147,6 +147,8 @@ function ScanContent() {
                 height={"100%"}
                 facingMode="environment"
                 delay={500}
+                // @ts-ignore
+                videoConstraints={{ facingMode: 'environment' }}
               />
             </div>
           </div>

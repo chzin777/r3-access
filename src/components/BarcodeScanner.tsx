@@ -57,6 +57,11 @@ export const BarcodeScanner = ({
           onUpdate(null, result);
         })
         .catch((err) => {
+          // Só chama onUpdate com erro se NÃO for NotFoundException (ZXing)
+          if (err && err.name === 'NotFoundException') {
+            // Não faz nada, apenas não encontrou QR/barcode
+            return;
+          }
           onUpdate(err);
         });
     }
