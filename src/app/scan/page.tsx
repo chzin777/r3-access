@@ -6,7 +6,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import BaseLayout from '@/components/Layout/BaseLayout';
 import Card from '@/components/UI/Card';
 import Button from '@/components/UI/Button';
-import QRScannerMobile from '@/components/QRScannerMobile';
+import QRScannerSimple from '@/components/QRScannerSimple';
 import { validateScannedToken, getTokenStats, TokenValidationResult } from '@/lib/tokenUtils';
 
 function ScanContent() {
@@ -113,7 +113,7 @@ function ScanContent() {
           <div className="mb-8">
             <div className="relative w-full h-96 mx-auto">
               {/* QRScanner com react-webcam integrado - sempre ativo */}
-              <QRScannerMobile
+              <QRScannerSimple
                 key={scannerKey}
                 onQRCodeDetected={handleScanSuccess}
                 onError={handleScanError}
@@ -129,7 +129,7 @@ function ScanContent() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span className="text-green-700 font-medium">Mobile Scanner ativo - Posicione o QRCode na câmera</span>
+                <span className="text-green-700 font-medium">Scanner Simples ativo - Posicione o QRCode na câmera</span>
               </div>
               
               {/* Botão de teste */}
