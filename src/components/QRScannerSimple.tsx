@@ -10,6 +10,7 @@ interface QRScannerSimpleProps {
 export default function QRScannerSimple({ onQRCodeDetected, onError }: QRScannerSimpleProps) {
   const [error, setError] = useState<string>('');
   const [isReady, setIsReady] = useState(false);
+  const [initTimeout, setInitTimeout] = useState<NodeJS.Timeout | null>(null);
   const [isScanning, setIsScanning] = useState(true);
   const [lastQRCode, setLastQRCode] = useState<string>('');
   const [scanCount, setScanCount] = useState(0);
@@ -82,9 +83,7 @@ export default function QRScannerSimple({ onQRCodeDetected, onError }: QRScanner
   // Scanner simples usando jsQR
   useEffect(() => {
     if (!isReady || !isScanning) return;
-
     console.log('📱 🔍 Iniciando scanning...');
-    
     const scanInterval = setInterval(() => {
       if (webcamRef.current) {
         const imageSrc = webcamRef.current.getScreenshot();
@@ -95,16 +94,37 @@ export default function QRScannerSimple({ onQRCodeDetected, onError }: QRScanner
         }
       }
     }, 1000);
-
     return () => {
       clearInterval(scanInterval);
     };
   }, [isReady, isScanning]);
 
+  // Timeout para erro se vídeo não iniciar
+  useEffect(() => {
+    if (!permissionGranted || isReady || error) return;
+    if (initTimeout) clearTimeout(initTimeout);
+    const timeout = setTimeout(() => {
+      if (!isReady) {
+        setError('Não foi possível inicializar a câmera. Tente trocar de câmera ou recarregar a página.');
+      }
+    }, 8000);
+    setInitTimeout(timeout);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [permissionGranted, isReady, error, deviceId]);
+
   const handleWebcamReady = useCallback(() => {
-    console.log('📱 ✅ Webcam pronta!');
-    setIsReady(true);
-    setError('');
+    // Só considerar pronto se o vídeo realmente está ativo
+    setTimeout(() => {
+      const video = webcamRef.current?.video;
+      if (video && video.readyState >= 2 && video.videoWidth > 0) {
+        console.log('📱 ✅ Webcam pronta e vídeo ativo!');
+        setIsReady(true);
+        setError('');
+      } else {
+        console.warn('📱 ⚠️ Vídeo não ativo ainda.');
+      }
+    }, 300);
   }, []);
 
   const handleWebcamError = useCallback((error: string | DOMException) => {
@@ -196,6 +216,7 @@ export default function QRScannerSimple({ onQRCodeDetected, onError }: QRScanner
     <div className="w-full h-full bg-black rounded-xl overflow-hidden relative">
       {/* Webcam */}
       <Webcam
+        key={deviceId || 'default'}
         ref={webcamRef}
         audio={false}
         videoConstraints={videoConstraints}
@@ -217,13 +238,11 @@ export default function QRScannerSimple({ onQRCodeDetected, onError }: QRScanner
             <div className="absolute top-0 right-0 w-6 h-6 border-r-4 border-t-4 border-green-400"></div>
             <div className="absolute bottom-0 left-0 w-6 h-6 border-l-4 border-b-4 border-green-400"></div>
             <div className="absolute bottom-0 right-0 w-6 h-6 border-r-4 border-b-4 border-green-400"></div>
-            
             {/* Linha de scan */}
             {isScanning && (
               <div className="absolute inset-x-2 top-1/2 h-0.5 bg-green-400 animate-pulse"></div>
             )}
           </div>
-          
           {/* Status */}
           <div className="text-center mt-4 text-white bg-black/50 px-4 py-2 rounded-full">
             {isScanning ? `Escaneando... (${scanCount} códigos)` : 'Processando...'}
@@ -231,7 +250,6 @@ export default function QRScannerSimple({ onQRCodeDetected, onError }: QRScanner
           </div>
         </div>
       </div>
-
       {/* Controles */}
       <div className="absolute top-4 left-4 right-4 flex justify-between z-10">
         <div className="bg-green-600/80 text-white px-3 py-1 rounded-full text-sm">
@@ -241,7 +259,6 @@ export default function QRScannerSimple({ onQRCodeDetected, onError }: QRScanner
           🎥 {devices.length} câmeras
         </div>
       </div>
-
       {/* Botões de controle */}
       <div className="absolute bottom-4 left-4 right-4 flex justify-center space-x-4 z-10">
         <button
@@ -250,13 +267,14 @@ export default function QRScannerSimple({ onQRCodeDetected, onError }: QRScanner
         >
           🧪 Testar QR
         </button>
-        
         {devices.length > 1 && (
           <button
             onClick={() => {
               const currentIndex = devices.findIndex(d => d.deviceId === deviceId);
               const nextIndex = (currentIndex + 1) % devices.length;
               setDeviceId(devices[nextIndex].deviceId);
+              setIsReady(false);
+              setError('');
               console.log('📱 🔄 Trocando câmera');
             }}
             className="bg-blue-500/80 text-white px-4 py-2 rounded-full backdrop-blur-sm text-sm"
