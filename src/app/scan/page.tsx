@@ -22,6 +22,13 @@ function ScanContent() {
   
   const userType = user?.tipo || null;
   const userId = user?.id || '';
+
+  // Log para debug de autenticação e permissões
+  useEffect(() => {
+    console.log('[SCAN DEBUG] user:', user);
+    console.log('[SCAN DEBUG] userType:', userType);
+    console.log('[SCAN DEBUG] userId:', userId);
+  }, [user, userType, userId]);
   
   useEffect(() => {
     // Carregar estatísticas
