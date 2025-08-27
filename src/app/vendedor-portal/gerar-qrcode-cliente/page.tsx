@@ -133,7 +133,7 @@ export default function VendedorGerarQRCodeCliente() {
                   <h4 className="font-semibold text-blue-800 mb-1">QRCode para Cliente</h4>
                   <p className="text-blue-700 text-sm">
                     Gere um token único para que o cliente possa retirar suas mercadorias. 
-                    O QRCode será válido por 24 horas e pode ser usado apenas uma vez.
+                    O QRCode será válido por 1 ano e pode ser usado apenas uma vez.
                   </p>
                 </div>
               </div>
