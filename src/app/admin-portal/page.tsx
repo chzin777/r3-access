@@ -77,6 +77,15 @@ export default function AdminPortal() {
         />
 
         <ActionLink
+          href="/admin-portal/gerar-qrcode-cliente"
+          title="QRCode para Cliente"
+          description="Gere tokens de acesso para clientes"
+          icon={qrCodeIcon}
+          color="indigo"
+          className="mb-4"
+        />
+
+        <ActionLink
           href="/scan?userType=admin"
           title="Validar QRCodes"
           description="Scanner para validação de acessos"
