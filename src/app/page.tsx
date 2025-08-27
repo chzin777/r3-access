@@ -34,6 +34,8 @@ export default function LoginPage() {
         router.push('/admin-portal');
       } else if (user.tipo === 'porteiro') {
         router.push('/porteiro-portal');
+      } else if (user.tipo === 'vendedor') {
+        router.push('/vendedor-portal');
       } else {
         router.push('/qrcode?userType=colaborador');
       }
@@ -110,6 +112,8 @@ export default function LoginPage() {
       router.push('/admin-portal');
     } else if (userData.tipo === 'porteiro') {
       router.push('/porteiro-portal');
+    } else if (userData.tipo === 'vendedor') {
+      router.push('/vendedor-portal');
     } else {
       // Colaborador vai direto para o QRCode
       router.push('/qrcode?userType=colaborador');

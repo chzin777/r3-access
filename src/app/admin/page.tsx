@@ -28,10 +28,17 @@ export default function AdminPage() {
     const sobrenome = (form.sobrenome as HTMLInputElement).value;
     const cargo = (form.cargo as HTMLInputElement).value;
     let tipo = 'colaborador';
-    if (cargo.trim().toLowerCase() === 'porteiro') {
+    const cargoNorm = cargo.trim().toLowerCase();
+    if (cargoNorm === 'porteiro') {
       tipo = 'porteiro';
-    } else if (cargo.trim().toLowerCase().includes('administrador') || cargo.trim().toLowerCase().includes('admin')) {
+    } else if (cargoNorm.includes('administrador') || cargoNorm.includes('admin')) {
       tipo = 'admin';
+    } else if (cargoNorm.startsWith('vendedor')) {
+      tipo = 'vendedor';
+    }
+    // Garante que tipo seja sempre um dos aceitos pelo banco
+    if (!["admin", "porteiro", "colaborador", "vendedor"].includes(tipo)) {
+      tipo = 'colaborador';
     }
     const foto_url = (form.foto_url as HTMLInputElement).value;
 

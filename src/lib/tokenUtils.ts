@@ -150,6 +150,71 @@ export async function createUserToken(userId: string, durationMinutes: number = 
 }
 
 /**
+ * Cria token para cliente (sem expiração por tempo, apenas por uso)
+ */
+export async function createClientToken(clientName: string, nf: string, vendedorId: string): Promise<TokenData | null> {
+  try {
+    console.log('Iniciando criação de token para cliente:', { clientName, nf, vendedorId });
+    
+    const token = generateSecureToken();
+    const tokenHash = hashToken(token);
+    // Token de cliente não expira por tempo, apenas por uso
+    const expiresAt = new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)); // 1 ano no futuro
+    const qrCodeData = JSON.stringify({
+      h: tokenHash.substring(0, 16),
+      n: clientName,
+      nf: nf,
+      t: "cliente",
+      v: 1,
+      vendedor: vendedorId
+    });
+
+    console.log('Dados preparados para inserção:', {
+      token: token.substring(0, 10) + '...',
+      tokenHash: tokenHash.substring(0, 10) + '...',
+      expiresAt: expiresAt.toISOString()
+    });
+
+    // Inserir token de cliente (usando vendedor como user_id para satisfazer constraint)
+    const { data, error } = await supabase
+      .from('access_tokens')
+      .insert({
+        user_id: vendedorId, // Usar vendedor ID para satisfazer constraint NOT NULL
+        token: token,
+        token_hash: tokenHash,
+        qr_code_data: qrCodeData,
+        expires_at: expiresAt.toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Erro detalhado do Supabase:', error);
+      console.error('Código do erro:', error.code);
+      console.error('Mensagem do erro:', error.message);
+      console.error('Detalhes do erro:', error.details);
+      return null;
+    }
+
+    console.log('Token de cliente criado com sucesso:', data.id);
+
+    return {
+      id: data.id,
+      userId: vendedorId,
+      token,
+      tokenHash,
+      expiresAt,
+      qrCodeData
+    };
+  } catch (error) {
+    console.error('Erro geral ao gerar token de cliente:', error);
+    console.error('Tipo do erro:', typeof error);
+    console.error('Stack do erro:', error instanceof Error ? error.stack : 'Sem stack');
+    return null;
+  }
+}
+
+/**
  * Valida token escaneado
  */
 export async function validateScannedToken(
@@ -200,10 +265,118 @@ export async function validateScannedToken(
 
     // Parse dos dados do QRCode normal
     const parsedData = JSON.parse(qrCodeData);
+    console.log('🔍 Dados parseados do QRCode:', parsedData);
+    console.log('🔍 Tipo de token (parsedData.t):', parsedData.t);
+    console.log('🔍 Comparação (parsedData.t === "cliente"):', parsedData.t === 'cliente');
     
-    // Verificar se não expirou
+    // Verificar se é token de cliente
+    if (parsedData.t === 'cliente') {
+      console.log('✅ Token identificado como de CLIENTE');
+      console.log('📝 Nome do cliente:', parsedData.n);
+      console.log('📄 Nota fiscal:', parsedData.nf);
+      
+      // Token de cliente - buscar por hash e verificar se não foi usado
+      const { data: tokenData, error } = await supabase
+        .from('access_tokens')
+        .select('*')
+        .eq('token_hash', parsedData.h)
+        .like('qr_code_data', '%"t":"cliente"%') // Garantir que é token de cliente
+        .single();
+
+      if (error || !tokenData) {
+        // Log de erro
+        try {
+          const logData = {
+            user_id: null,
+            scanner_user_id: scannerUserId,
+            action: 'access_denied',
+            success: false,
+            qr_data: qrCodeData,
+            error_message: 'Token de cliente não encontrado'
+          };
+          
+          const { error: logError } = await supabase.from('access_logs').insert(logData);
+          if (logError) {
+            console.warn('Erro ao inserir log de negação:', logError);
+          }
+        } catch (logError) {
+          console.warn('Erro ao registrar log de negação:', logError);
+        }
+
+        return {
+          isValid: false,
+          errorMessage: 'QR Code de cliente inválido'
+        };
+      }
+
+      // Verificar se já foi usado
+      if (tokenData.is_used) {
+        // Log de erro
+        try {
+          const logData = {
+            user_id: null,
+            scanner_user_id: scannerUserId,
+            action: 'access_denied',
+            success: false,
+            qr_data: qrCodeData,
+            error_message: 'Token de cliente já utilizado'
+          };
+          
+          const { error: logError } = await supabase.from('access_logs').insert(logData);
+          if (logError) {
+            console.warn('Erro ao inserir log de token usado:', logError);
+          }
+        } catch (logError) {
+          console.warn('Erro ao registrar log de token usado:', logError);
+        }
+
+        return {
+          isValid: false,
+          errorMessage: 'QR Code de cliente já utilizado'
+        };
+      }
+
+      // Marcar token como usado
+      await supabase
+        .from('access_tokens')
+        .update({ is_used: true })
+        .eq('id', tokenData.id);
+
+      // Log de sucesso
+      try {
+        const logData = {
+          user_id: null,
+          scanner_user_id: scannerUserId,
+          action: 'client_access_granted',
+          success: true,
+          qr_data: qrCodeData,
+          error_message: null
+        };
+        
+        const { error: logError } = await supabase.from('access_logs').insert(logData);
+        if (logError) {
+          console.warn('Erro ao inserir log de sucesso:', logError);
+        }
+      } catch (logError) {
+        console.warn('Erro ao registrar log de sucesso:', logError);
+      }
+
+      return {
+        isValid: true,
+        userData: {
+          id: 'client-' + tokenData.id,
+          nome: parsedData.n || 'Cliente',
+          sobrenome: `(NF: ${parsedData.nf || 'N/A'})`,
+          cargo: 'Cliente - Retirada de Mercadoria',
+          foto_url: undefined
+        },
+        tokenId: tokenData.id
+      };
+    }
+    
+    // Verificar se não expirou (para tokens normais de usuários)
     const now = Math.floor(Date.now() / 1000);
-    if (parsedData.e < now) {
+    if (parsedData.e && parsedData.e < now) {
       return {
         isValid: false,
         errorMessage: 'Token expirado'

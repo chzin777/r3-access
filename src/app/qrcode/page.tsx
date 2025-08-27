@@ -102,15 +102,15 @@ function QRCodeContent() {
       return '/admin-portal';
     } else if (userType === 'porteiro') {
       return '/porteiro-portal';
+    } else if (userType === 'vendedor') {
+      return '/vendedor-portal';
     } else {
       return '/'; // Colaborador sai do sistema
     }
   };
 
   const getBackText = () => {
-    if (userType === 'admin') {
-      return 'Voltar ao Portal';
-    } else if (userType === 'porteiro') {
+    if (userType === 'admin' || userType === 'porteiro' || userType === 'vendedor') {
       return 'Voltar ao Portal';
     } else {
       return 'Sair do Sistema';

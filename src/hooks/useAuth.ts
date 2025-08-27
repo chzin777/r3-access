@@ -28,11 +28,25 @@ export function useAuth() {
       
       if (userId && userName && userType) {
         const [nome, sobrenome] = userName.split(' ');
+        // Normaliza para comparar sem acento, maiúsculo/minúsculo e com/sem (a)
+        const typeNorm = userType.trim().toLowerCase();
+        let tipoFinal = userType;
+        if (
+          ![
+            'admin',
+            'administrador',
+            'porteiro',
+            'vendedor',
+            'vendedor(a)'
+          ].includes(typeNorm)
+        ) {
+          tipoFinal = 'Colaborador';
+        }
         setUser({
           id: userId,
           nome: nome || '',
           sobrenome: sobrenome || '',
-          tipo: userType,
+          tipo: tipoFinal,
           login: userLogin || ''
         });
       } else {
