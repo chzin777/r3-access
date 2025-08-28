@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   BarcodeFormat,
   BrowserMultiFormatReader,
@@ -26,6 +26,7 @@ export const BarcodeScanner = ({
   videoConstraints,
   stopStream,
   formats,
+  shouldRestart = false,
 }: {
   onUpdate: (arg0: unknown, arg1?: Result) => void;
   onError?: (arg0: string | DOMException) => void;
@@ -37,10 +38,15 @@ export const BarcodeScanner = ({
   videoConstraints?: MediaTrackConstraints;
   stopStream?: boolean;
   formats?: BarcodeFormat[] | BarcodeStringFormat[];
+  shouldRestart?: boolean;
 }): React.ReactElement => {
   const webcamRef = useRef<Webcam>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [isScanning, setIsScanning] = useState(true);
 
   const capture = useCallback(() => {
+    if (!isScanning) return;
+    
     const codeReader = new BrowserMultiFormatReader(
       new Map([
         [
@@ -54,7 +60,20 @@ export const BarcodeScanner = ({
       codeReader
         .decodeFromImage(undefined, imageSrc)
         .then((result) => {
+          // Parar escaneamento quando encontrar um QR code
+          console.log('📱 QR Code detectado, pausando scanner...');
+          setIsScanning(false);
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+          }
+          
           onUpdate(null, result);
+          
+          // Reiniciar após 3 segundos
+          setTimeout(() => {
+            console.log('📱 Reiniciando scanner...');
+            setIsScanning(true);
+          }, 3000);
         })
         .catch((err) => {
           // Só chama onUpdate com erro se NÃO for NotFoundException (ZXing)
@@ -65,7 +84,15 @@ export const BarcodeScanner = ({
           onUpdate(err);
         });
     }
-  }, [onUpdate, formats]);
+  }, [onUpdate, formats, isScanning]);
+
+  // Efeito para reiniciar quando shouldRestart muda
+  useEffect(() => {
+    if (shouldRestart) {
+      console.log('📱 Reiniciando scanner por solicitação externa...');
+      setIsScanning(true);
+    }
+  }, [shouldRestart]);
 
   useEffect(() => {
     // Turn on the flashlight if prop is defined and device has the capability
@@ -103,11 +130,17 @@ export const BarcodeScanner = ({
   }, [stopStream]);
 
   useEffect(() => {
-    const interval = setInterval(capture, delay);
+    if (isScanning) {
+      console.log('📱 Iniciando interval de escaneamento...');
+      intervalRef.current = setInterval(capture, delay);
+    }
+    
     return () => {
-      clearInterval(interval);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
     };
-  }, [capture, delay]);
+  }, [capture, delay, isScanning]);
 
   return (
     <Webcam

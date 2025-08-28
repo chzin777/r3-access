@@ -17,6 +17,7 @@ function ScanContent() {
   const [result, setResult] = useState<TokenValidationResult | null>(null);
   const [stats, setStats] = useState({ activeTokens: 0, todayScans: 0, successRate: 0 });
   const [scannerKey, setScannerKey] = useState(0);
+  const [shouldRestart, setShouldRestart] = useState(false);
   const searchParams = useSearchParams();
   const { user } = useAuth();
   
@@ -93,9 +94,13 @@ function ScanContent() {
   
   const startScanning = () => {
     setResult(null);
+    setShouldRestart(true);
     // Forçar reinicialização do scanner
     setIsScanning(true);
     setScannerKey(prev => prev + 1);
+    
+    // Reset shouldRestart após um pequeno delay
+    setTimeout(() => setShouldRestart(false), 100);
   };
   
   const stopScanning = () => {
@@ -125,6 +130,7 @@ function ScanContent() {
             <div className="relative w-full h-[320px] sm:h-96 mx-auto bg-black rounded-lg sm:rounded-xl overflow-hidden flex items-center justify-center border border-gray-200 shadow-md">
               {/* BarcodeScanner com ZXing + react-webcam */}
               <BarcodeScanner
+                key={scannerKey}
                 onUpdate={(err, result) => {
                   if (!isScanning) return;
                   if (err) {
@@ -147,6 +153,7 @@ function ScanContent() {
                 height={"100%"}
                 delay={500}
                 videoConstraints={{ facingMode: 'environment', aspectRatio: 9/16 }}
+                shouldRestart={shouldRestart}
               />
             </div>
           </div>
