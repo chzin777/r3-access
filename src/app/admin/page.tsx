@@ -9,11 +9,13 @@ import Card from '@/components/UI/Card';
 import Input from '@/components/UI/Input';
 import Button from '@/components/UI/Button';
 import Alert from '@/components/UI/Alert';
+import ImportColaboradoresModal from '@/components/Modals/ImportColaboradoresModal';
 
 export default function AdminPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   async function handleRegister(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -33,7 +35,7 @@ export default function AdminPage() {
       tipo = 'porteiro';
     } else if (cargoNorm.includes('administrador') || cargoNorm.includes('admin')) {
       tipo = 'admin';
-    } else if (cargoNorm.startsWith('vendedor')) {
+    } else if (cargoNorm.includes('vendas') || cargoNorm.includes('vendedor') || cargoNorm.includes('vendedora') || cargoNorm.includes('comercial') || cargoNorm.includes('representante')) {
       tipo = 'vendedor';
     }
     // Garante que tipo seja sempre um dos aceitos pelo banco
@@ -70,6 +72,11 @@ export default function AdminPage() {
       setIsLoading(false);
     }
   }
+
+  const handleImportSuccess = (importedCount: number) => {
+    setMsg(`${importedCount} colaborador(es) importado(s) com sucesso!`);
+    setError(null);
+  };
 
   const adminIcon = (
     <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -112,6 +119,33 @@ export default function AdminPage() {
         backText="Voltar ao Portal"
         maxWidth="lg"
       >
+      {/* Import Button */}
+      <div className="mb-6">
+        <Card>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800">Importação em Lote</h3>
+                <p className="text-sm text-gray-600">Importe múltiplos colaboradores através de arquivo CSV</p>
+              </div>
+            </div>
+            <Button
+              variant="primary"
+              onClick={() => setIsImportModalOpen(true)}
+              className="flex items-center space-x-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+              </svg>
+              <span>Importar CSV</span>
+            </Button>
+          </div>
+        </Card>
+      </div>
+
       <Card>
         <form className="space-y-6" onSubmit={handleRegister}>
           {/* Info card */}
@@ -267,6 +301,13 @@ export default function AdminPage() {
           </div>
         </div>
       </Card>
+
+      {/* Import Modal */}
+      <ImportColaboradoresModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={handleImportSuccess}
+      />
     </BaseLayout>
     </ProtectedRoute>
   );
