@@ -219,7 +219,9 @@ export async function createClientToken(clientName: string, nf: string, vendedor
  */
 export async function createVisitorToken(visitorName: string, creatorId: string): Promise<TokenData | null> {
   try {
-    console.log('Iniciando criação de token para visitante:', { visitorName, creatorId });
+    console.log('🎯 FUNÇÃO createVisitorToken CHAMADA');
+    console.log('👤 Nome do visitante recebido:', visitorName);
+    console.log('🔑 ID do criador recebido:', creatorId);
     
     const token = generateSecureToken();
     const tokenHash = hashToken(token);
@@ -233,6 +235,9 @@ export async function createVisitorToken(visitorName: string, creatorId: string)
       creator: creatorId,
       e: Math.floor(expiresAt.getTime() / 1000)
     });
+
+    console.log('📦 QR Code Data criado:', qrCodeData);
+    console.log('⏰ Data de expiração:', expiresAt.toISOString());
 
     console.log('Dados preparados para inserção:', {
       token: token.substring(0, 10) + '...',

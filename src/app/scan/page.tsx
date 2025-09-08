@@ -128,11 +128,11 @@ function ScanContent() {
           {/* Scanner Area */}
           <div className="mb-6 sm:mb-8">
             <div className="relative w-full h-[320px] sm:h-96 mx-auto bg-black rounded-lg sm:rounded-xl overflow-hidden flex items-center justify-center border border-gray-200 shadow-md">
-              {/* BarcodeScanner com ZXing + react-webcam */}
+              {/* BarcodeScanner com ZXing + react-webcam em modo manual */}
               <BarcodeScanner
                 key={scannerKey}
+                manualScan={true} // Habilitar modo manual
                 onUpdate={(err, result) => {
-                  if (!isScanning) return;
                   if (err) {
                     if (typeof err === 'string') handleScanError(err);
                     else if (err instanceof DOMException) handleScanError(err.message);
@@ -143,7 +143,6 @@ function ScanContent() {
                   }
                 }}
                 onError={(err) => {
-                  if (!isScanning) return;
                   if (typeof err === 'string') handleScanError(err);
                   else if (err instanceof DOMException) handleScanError(err.message);
                   else handleScanError('Erro desconhecido');
@@ -274,7 +273,11 @@ function ScanContent() {
                   </div>
                   <div className="flex items-center">
                     <span className="w-5 h-5 sm:w-6 sm:h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold mr-2 sm:mr-3">3</span>
-                    Aguarde a validação automática e resultado
+                    Clique no botão "Escanear" para processar o QRCode
+                  </div>
+                  <div className="flex items-center">
+                    <span className="w-5 h-5 sm:w-6 sm:h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold mr-2 sm:mr-3">4</span>
+                    Aguarde a validação e resultado
                   </div>
                 </div>
               </div>

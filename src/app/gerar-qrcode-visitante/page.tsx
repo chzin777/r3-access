@@ -42,6 +42,8 @@ export default function GerarQRCodeVisitante() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('🚀 Iniciando geração de QR Code para visitante:', visitorName);
+    
     if (!visitorName.trim()) {
       setError('Por favor, digite o nome do visitante');
       return;
@@ -52,6 +54,10 @@ export default function GerarQRCodeVisitante() {
       return;
     }
 
+    console.log('✅ Validações passou, iniciando criação do token...');
+    console.log('👤 Nome do visitante:', visitorName.trim());
+    console.log('🔑 ID do criador:', user.id);
+
     setIsLoading(true);
     setError('');
     setMessage('');
@@ -59,12 +65,17 @@ export default function GerarQRCodeVisitante() {
 
     try {
       // Criar token para o visitante
+      console.log('📞 Chamando createVisitorToken...');
       const result = await createVisitorToken(
         visitorName.trim(),
         user.id
       );
 
+      console.log('📋 Resultado da criação do token:', result);
+
       if (result && result.qrCodeData) {
+        console.log('🎯 QR Code data recebido:', result.qrCodeData);
+        
         // Gerar imagem do QRCode
         const dataUrl = await QRCode.toDataURL(result.qrCodeData, {
           width: 400,
@@ -83,10 +94,11 @@ export default function GerarQRCodeVisitante() {
         // Limpar formulário
         setVisitorName('');
       } else {
+        console.error('❌ Erro: resultado inválido:', result);
         setError('Erro ao gerar QRCode');
       }
     } catch (error) {
-      console.error('Erro ao gerar QRCode:', error);
+      console.error('💥 Erro ao gerar QRCode:', error);
       setError('Erro interno ao gerar QRCode');
     } finally {
       setIsLoading(false);
