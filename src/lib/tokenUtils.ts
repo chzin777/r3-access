@@ -215,6 +215,71 @@ export async function createClientToken(clientName: string, nf: string, vendedor
 }
 
 /**
+ * Cria token para visitante (expira em 30 segundos)
+ */
+export async function createVisitorToken(visitorName: string, creatorId: string): Promise<TokenData | null> {
+  try {
+    console.log('Iniciando criação de token para visitante:', { visitorName, creatorId });
+    
+    const token = generateSecureToken();
+    const tokenHash = hashToken(token);
+    // Token de visitante expira em 30 segundos
+    const expiresAt = new Date(Date.now() + (30 * 1000)); // 30 segundos
+    const qrCodeData = JSON.stringify({
+      h: tokenHash.substring(0, 16),
+      n: visitorName,
+      t: "visitante",
+      v: 1,
+      creator: creatorId,
+      e: Math.floor(expiresAt.getTime() / 1000)
+    });
+
+    console.log('Dados preparados para inserção:', {
+      token: token.substring(0, 10) + '...',
+      tokenHash: tokenHash.substring(0, 10) + '...',
+      expiresAt: expiresAt.toISOString()
+    });
+
+    // Inserir token de visitante
+    const { data, error } = await supabase
+      .from('access_tokens')
+      .insert({
+        user_id: creatorId, // Usar criador ID para satisfazer constraint NOT NULL
+        token: token,
+        token_hash: tokenHash,
+        qr_code_data: qrCodeData,
+        expires_at: expiresAt.toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Erro detalhado do Supabase:', error);
+      console.error('Código do erro:', error.code);
+      console.error('Mensagem do erro:', error.message);
+      console.error('Detalhes do erro:', error.details);
+      return null;
+    }
+
+    console.log('Token de visitante criado com sucesso:', data.id);
+
+    return {
+      id: data.id,
+      userId: creatorId,
+      token,
+      tokenHash,
+      expiresAt,
+      qrCodeData
+    };
+  } catch (error) {
+    console.error('Erro geral ao gerar token de visitante:', error);
+    console.error('Tipo do erro:', typeof error);
+    console.error('Stack do erro:', error instanceof Error ? error.stack : 'Sem stack');
+    return null;
+  }
+}
+
+/**
  * Valida token escaneado
  */
 export async function validateScannedToken(
@@ -268,6 +333,141 @@ export async function validateScannedToken(
     console.log('🔍 Dados parseados do QRCode:', parsedData);
     console.log('🔍 Tipo de token (parsedData.t):', parsedData.t);
     console.log('🔍 Comparação (parsedData.t === "cliente"):', parsedData.t === 'cliente');
+    console.log('🔍 Comparação (parsedData.t === "visitante"):', parsedData.t === 'visitante');
+    
+    // Verificar se é token de visitante
+    if (parsedData.t === 'visitante') {
+      console.log('✅ Token identificado como de VISITANTE');
+      console.log('👤 Nome do visitante:', parsedData.n);
+      
+      // Primeiro verificar se não expirou
+      const now = Math.floor(Date.now() / 1000);
+      if (parsedData.e && parsedData.e < now) {
+        console.log('❌ Token de visitante expirado');
+        
+        // Log de erro
+        try {
+          const logData = {
+            user_id: null,
+            scanner_user_id: scannerUserId,
+            action: 'access_denied',
+            success: false,
+            qr_data: qrCodeData,
+            error_message: 'Token de visitante expirado'
+          };
+          
+          const { error: logError } = await supabase.from('access_logs').insert(logData);
+          if (logError) {
+            console.warn('Erro ao inserir log de negação:', logError);
+          }
+        } catch (logError) {
+          console.warn('Erro ao registrar log de negação:', logError);
+        }
+
+        return {
+          isValid: false,
+          errorMessage: 'QR Code de visitante expirado'
+        };
+      }
+
+      // Token de visitante - buscar por hash e verificar se não foi usado
+      const { data: tokenData, error } = await supabase
+        .from('access_tokens')
+        .select('*')
+        .eq('token_hash', parsedData.h)
+        .like('qr_code_data', '%"t":"visitante"%') // Garantir que é token de visitante
+        .single();
+
+      if (error || !tokenData) {
+        // Log de erro
+        try {
+          const logData = {
+            user_id: null,
+            scanner_user_id: scannerUserId,
+            action: 'access_denied',
+            success: false,
+            qr_data: qrCodeData,
+            error_message: 'Token de visitante não encontrado'
+          };
+          
+          const { error: logError } = await supabase.from('access_logs').insert(logData);
+          if (logError) {
+            console.warn('Erro ao inserir log de negação:', logError);
+          }
+        } catch (logError) {
+          console.warn('Erro ao registrar log de negação:', logError);
+        }
+
+        return {
+          isValid: false,
+          errorMessage: 'QR Code de visitante inválido'
+        };
+      }
+
+      // Verificar se já foi usado
+      if (tokenData.is_used) {
+        // Log de erro
+        try {
+          const logData = {
+            user_id: null,
+            scanner_user_id: scannerUserId,
+            action: 'access_denied',
+            success: false,
+            qr_data: qrCodeData,
+            error_message: 'Token de visitante já utilizado'
+          };
+          
+          const { error: logError } = await supabase.from('access_logs').insert(logData);
+          if (logError) {
+            console.warn('Erro ao inserir log de token usado:', logError);
+          }
+        } catch (logError) {
+          console.warn('Erro ao registrar log de token usado:', logError);
+        }
+
+        return {
+          isValid: false,
+          errorMessage: 'QR Code de visitante já utilizado'
+        };
+      }
+
+      // Marcar token como usado
+      await supabase
+        .from('access_tokens')
+        .update({ is_used: true })
+        .eq('id', tokenData.id);
+
+      // Log de sucesso
+      try {
+        const logData = {
+          user_id: null,
+          scanner_user_id: scannerUserId,
+          action: 'visitor_access_granted',
+          success: true,
+          qr_data: qrCodeData,
+          error_message: null
+        };
+        
+        const { error: logError } = await supabase.from('access_logs').insert(logData);
+        if (logError) {
+          console.warn('Erro ao inserir log de sucesso:', logError);
+        }
+      } catch (logError) {
+        console.warn('Erro ao registrar log de sucesso:', logError);
+      }
+
+      return {
+        isValid: true,
+        userData: {
+          id: 'visitor-' + tokenData.id,
+          nome: parsedData.n || 'Visitante',
+          sobrenome: '',
+          cargo: 'Visitante',
+          foto_url: undefined
+        },
+        tokenId: tokenData.id
+      };
+    }
     
     // Verificar se é token de cliente
     if (parsedData.t === 'cliente') {
@@ -383,7 +583,7 @@ export async function validateScannedToken(
       };
     }
 
-    // Buscar token válido no banco
+    // Buscar token válido no banco (apenas para tokens de usuários normais, não visitantes ou clientes)
     const { data: tokenData, error } = await supabase
       .from('access_tokens')
       .select(`
@@ -397,6 +597,8 @@ export async function validateScannedToken(
         )
       `)
       .eq('token_hash', parsedData.h)
+      .not('qr_code_data', 'like', '%"t":"visitante"%') // Excluir tokens de visitante
+      .not('qr_code_data', 'like', '%"t":"cliente"%')   // Excluir tokens de cliente
       .single();
 
     if (error || !tokenData) {

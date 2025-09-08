@@ -37,7 +37,7 @@ export default function LoginPage() {
       } else if (user.tipo === 'vendedor') {
         router.push('/vendedor-portal');
       } else {
-        router.push('/qrcode?userType=colaborador');
+        router.push('/colaborador-portal');
       }
     }
   }, [user, authLoading, router]);
@@ -115,8 +115,8 @@ export default function LoginPage() {
     } else if (userData.tipo === 'vendedor') {
       router.push('/vendedor-portal');
     } else {
-      // Colaborador vai direto para o QRCode
-      router.push('/qrcode?userType=colaborador');
+      // Colaborador vai para o portal de colaborador
+      router.push('/colaborador-portal');
     }
   };
 
