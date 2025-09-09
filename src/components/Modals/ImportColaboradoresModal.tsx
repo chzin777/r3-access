@@ -1,5 +1,5 @@
 "use client";
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import bcrypt from 'bcryptjs';
 import Button from '@/components/UI/Button';
@@ -37,15 +37,20 @@ export default function ImportColaboradoresModal({ isOpen, onClose, onSuccess }:
   const [step, setStep] = useState<'upload' | 'preview' | 'processing'>('upload');
   const [sobrescreverExistentes, setSobrescreverExistentes] = useState(true);
 
-  const closeModal = () => {
-    setFile(null);
-    setPreviewData([]);
-    setError(null);
-    setSuccess(null);
-    setStep('upload');
-    setSobrescreverExistentes(true);
-    onClose();
-  };
+  const closeModal = useCallback(() => {
+    try {
+      setFile(null);
+      setPreviewData([]);
+      setError(null);
+      setSuccess(null);
+      setStep('upload');
+      setSobrescreverExistentes(true);
+      onClose();
+    } catch (err) {
+      console.error('Erro ao fechar modal:', err);
+      onClose();
+    }
+  }, [onClose]);
 
   const processarNome = (nomeCompleto: string): { nome: string; sobrenome: string; login: string } => {
     const nomes = nomeCompleto.trim().split(' ').filter(n => n.length > 0);
@@ -77,82 +82,84 @@ export default function ImportColaboradoresModal({ isOpen, onClose, onSuccess }:
     return termosVendas.some(termo => cargoLower.includes(termo)) ? 'vendedor' : 'colaborador';
   };
 
-  // Função para tentar ler arquivo com diferentes codificações
-  const readFileWithEncoding = (file: File): Promise<string> => {
+  // Função melhorada para ler arquivo com tratamento de erro para mobile
+  const readFileWithEncoding = useCallback((file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
+      try {
+        if (!file) {
+          reject(new Error('Arquivo não encontrado'));
+          return;
+        }
         
-        // Função para corrigir caracteres mal codificados
-        const fixEncoding = (text: string): string => {
-          return text
-            // Corrigir TÉCNICO
-            .replace(/T[Ã�][C�É]NICO/gi, 'TÉCNICO')
-            .replace(/TÃ‰CNICO/gi, 'TÉCNICO')
-            .replace(/TÃ©CNICO/gi, 'TÉCNICO')
-            .replace(/T�CNICO/gi, 'TÉCNICO')
-            .replace(/TÃCNICO/gi, 'TÉCNICO')
+        // Verificar suporte a FileReader
+        if (typeof FileReader === 'undefined') {
+          reject(new Error('FileReader não suportado neste dispositivo'));
+          return;
+        }
+        
+        const reader = new FileReader();
+        
+        reader.onload = (event) => {
+          try {
+            const result = event.target?.result as string;
+            if (!result) {
+              reject(new Error('Não foi possível ler o arquivo'));
+              return;
+            }
             
-            // Corrigir outras palavras comuns
-            .replace(/ANÃLISE/gi, 'ANÁLISE')
-            .replace(/AN[Ã�]LISE/gi, 'ANÁLISE')
-            .replace(/GESTÃ[Ã£O]/gi, 'GESTÃO')
-            .replace(/GEST[Ã�]O/gi, 'GESTÃO')
-            .replace(/OPERA[Ã�Ç][Ã�ÃƒO]/gi, 'OPERAÇÃO')
+            // Função para corrigir caracteres mal codificados
+            const fixEncoding = (text: string): string => {
+              return text
+                // Corrigir TÉCNICO e variações
+                .replace(/T[ÃĂÉe][CĂÉ]NICO/gi, 'TÉCNICO')
+                .replace(/TĂCNICO/gi, 'TÉCNICO')
+                .replace(/TăCNICO/gi, 'TÉCNICO')
+                .replace(/TĂCNICO/gi, 'TÉCNICO')
+                .replace(/TÃCNICO/gi, 'TÉCNICO')
+                
+                // Corrigir outras palavras comuns
+                .replace(/ANÃLISE/gi, 'ANÁLISE')
+                .replace(/AN[ÃĂ]LISE/gi, 'ANÁLISE')
+                .replace(/GESTÃ[Ão]/gi, 'GESTÃO')
+                .replace(/GEST[ÃĂ]O/gi, 'GESTÃO')
+                .replace(/OPERA[ÃĂÇ][ÃĂÃƒO]/gi, 'OPERAÇÃO')
+                
+                // Remover caracteres de substituição
+                .replace(/Ă/g, '')
+                .replace(/\uFFFD/g, '');
+            };
             
-            // Corrigir caracteres individuais mais comuns
-            .replace(/Ã¡/g, 'á').replace(/Ã /g, 'à').replace(/Ã¢/g, 'â').replace(/Ã£/g, 'ã')
-            .replace(/Ã©/g, 'é').replace(/Ãª/g, 'ê').replace(/Ã¨/g, 'è')
-            .replace(/Ã­/g, 'í').replace(/Ã®/g, 'î').replace(/Ã¬/g, 'ì')
-            .replace(/Ã³/g, 'ó').replace(/Ã´/g, 'ô').replace(/Ã²/g, 'ò').replace(/Ãµ/g, 'õ')
-            .replace(/Ãº/g, 'ú').replace(/Ã»/g, 'û').replace(/Ã¹/g, 'ù')
-            .replace(/Ã§/g, 'ç').replace(/Ã±/g, 'ñ')
-            
-            // Maiúsculas
-            .replace(/Ã\u0081/g, 'Á').replace(/Ã\u0080/g, 'À').replace(/Ã\u0082/g, 'Â').replace(/Ã\u0083/g, 'Ã')
-            .replace(/Ã\u0089/g, 'É').replace(/Ã\u008A/g, 'Ê').replace(/Ã\u0088/g, 'È')
-            .replace(/Ã\u008D/g, 'Í').replace(/Ã\u008E/g, 'Î').replace(/Ã\u008C/g, 'Ì')
-            .replace(/Ã\u0093/g, 'Ó').replace(/Ã\u0094/g, 'Ô').replace(/Ã\u0092/g, 'Ò').replace(/Ã\u0095/g, 'Õ')
-            .replace(/Ã\u009A/g, 'Ú').replace(/Ã\u009B/g, 'Û').replace(/Ã\u0099/g, 'Ù')
-            .replace(/Ã\u0087/g, 'Ç').replace(/Ã\u0091/g, 'Ñ')
-            
-            // Remover caracteres de substituição
-            .replace(/�/g, '')
-            .replace(/\uFFFD/g, '');
+            const correctedContent = fixEncoding(result);
+            resolve(correctedContent);
+          } catch (err) {
+            reject(new Error(`Erro ao processar: ${err instanceof Error ? err.message : 'Erro desconhecido'}`));
+          }
         };
         
-        const correctedContent = fixEncoding(result);
-        resolve(correctedContent);
-      };
-      
-      reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
-      
-      // Tentar ler como Latin1 primeiro (mais comum para CSVs brasileiros)
-      reader.readAsText(file, 'ISO-8859-1');
+        reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
+        
+        // Tentar ler como Latin1 primeiro
+        try {
+          reader.readAsText(file, 'ISO-8859-1');
+        } catch (err) {
+          // Fallback para UTF-8
+          try {
+            reader.readAsText(file, 'UTF-8');
+          } catch (fallbackErr) {
+            reject(new Error('Erro ao iniciar leitura'));
+          }
+        }
+      } catch (err) {
+        reject(new Error(`Erro na configuração: ${err instanceof Error ? err.message : 'Erro desconhecido'}`));
+      }
     });
-  };
+  }, []);
 
   const parseCSV = (content: string): ColaboradorCSV[] => {
     const lines = content.split('\n').filter(line => line.trim().length > 0);
     
     if (lines.length < 2) {
-      throw new Error('Arquivo CSV deve conter pelo menos uma linha de cabeçalho e uma linha de dados');
-    }
-
-    const header = lines[0].split(';');
-    const expectedHeaders = ['Nome', 'Departamento', 'Cargo', 'Data de Admissão'];
-    
-    // Verificar se o cabeçalho está correto
-    const normalizeHeader = (h: string) => h.trim().toLowerCase().replace(/[^\w]/g, '');
-    const headerNormalized = header.map(normalizeHeader);
-    const expectedNormalized = expectedHeaders.map(normalizeHeader);
-    
-    for (const expected of expectedNormalized) {
-      if (!headerNormalized.includes(expected)) {
-        throw new Error(`Cabeçalho esperado não encontrado: ${expected}. Cabeçalhos encontrados: ${header.join(', ')}`);
-      }
+      throw new Error('Arquivo deve conter cabeçalho e dados');
     }
 
     const data: ColaboradorCSV[] = [];
@@ -182,28 +189,19 @@ export default function ImportColaboradoresModal({ isOpen, onClose, onSuccess }:
       setError(null);
       setIsProcessing(true);
 
-      // Tentar diferentes codificações para ler o arquivo
       let content = '';
       try {
-        // Primeiro tenta UTF-8
         content = await file.text();
       } catch (error) {
-        // Se falhar, tenta com FileReader e diferentes codificações
         content = await readFileWithEncoding(file);
       }
-      const csvData = parseCSV(content);
       
+      const csvData = parseCSV(content);
       const colaboradoresProcessados: ColaboradorProcessado[] = [];
-      const erros: string[] = [];
 
-      for (let i = 0; i < csvData.length; i++) {
-        const colaborador = csvData[i];
-        
+      for (const colaborador of csvData) {
         try {
-          if (!colaborador.nome || colaborador.nome.trim().length === 0) {
-            erros.push(`Linha ${i + 2}: Nome é obrigatório`);
-            continue;
-          }
+          if (!colaborador.nome?.trim()) continue;
 
           const { nome, sobrenome, login } = processarNome(colaborador.nome);
           const tipo = determinarTipo(colaborador.cargo);
@@ -218,20 +216,14 @@ export default function ImportColaboradoresModal({ isOpen, onClose, onSuccess }:
             dataAdmissao: colaborador.dataAdmissao
           });
         } catch (err) {
-          erros.push(`Linha ${i + 2}: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
+          console.error('Erro ao processar colaborador:', err);
         }
-      }
-
-      if (erros.length > 0) {
-        setError(`Erros encontrados:\n${erros.join('\n')}`);
-        setIsProcessing(false);
-        return;
       }
 
       setPreviewData(colaboradoresProcessados);
       setStep('preview');
     } catch (err) {
-      setError(`Erro ao processar arquivo: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
+      setError(`Erro: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
     } finally {
       setIsProcessing(false);
     }
@@ -250,142 +242,67 @@ export default function ImportColaboradoresModal({ isOpen, onClose, onSuccess }:
       setStep('processing');
 
       const senhaHash = bcrypt.hashSync('r3sup@123', 10);
-      const colaboradoresParaInserir = previewData.map(colaborador => ({
-        nome: colaborador.nome,
-        sobrenome: colaborador.sobrenome,
-        login: colaborador.login,
-        password: senhaHash,
-        cargo: colaborador.cargo,
-        tipo: colaborador.tipo,
-        primeiro_acesso: true
-      }));
-
-      // Inserir em lotes para evitar timeouts
-      const batchSize = 50;
       let totalInseridos = 0;
       const errosInsercao: string[] = [];
 
-      for (let i = 0; i < colaboradoresParaInserir.length; i += batchSize) {
-        const batch = colaboradoresParaInserir.slice(i, i + batchSize);
-        
-        // Usar upsert se sobrescrever estiver habilitado
-        let data, error;
-        
-        if (sobrescreverExistentes) {
-          const result = await supabase
-            .from('users')
-            .upsert(batch, { 
-              onConflict: 'login',
-              ignoreDuplicates: false 
-            })
-            .select('id, login');
-          data = result.data;
-          error = result.error;
-        } else {
-          const result = await supabase
-            .from('users')
-            .insert(batch)
-            .select('id, login');
-          data = result.data;
-          error = result.error;
-        }
+      // Processar um por um para melhor controle
+      for (const colaborador of previewData) {
+        try {
+          const dadosColaborador = {
+            nome: colaborador.nome,
+            sobrenome: colaborador.sobrenome,
+            login: colaborador.login,
+            password: senhaHash,
+            cargo: colaborador.cargo,
+            tipo: colaborador.tipo,
+            primeiro_acesso: true
+          };
 
-        if (error) {
-          // Se der erro, tentar inserir um por um para identificar problemas específicos
-          for (const colaborador of batch) {
-            let { error: singleError } = await supabase
+          if (sobrescreverExistentes) {
+            const { error } = await supabase
               .from('users')
-              .insert([colaborador]);
+              .upsert([dadosColaborador], { onConflict: 'login' });
 
-            // Se erro da coluna 'ativo', tentar sem essa coluna
-            if (singleError?.message?.includes("'ativo'")) {
-              const colaboradorSemAtivo = {
-                nome: colaborador.nome,
-                sobrenome: colaborador.sobrenome,
-                login: colaborador.login,
-                password: colaborador.password,
-                cargo: colaborador.cargo,
-                tipo: colaborador.tipo,
-                primeiro_acesso: colaborador.primeiro_acesso
-              };
-              
-              const result = await supabase
-                .from('users')
-                .insert([colaboradorSemAtivo]);
-              
-              singleError = result.error;
+            if (error) {
+              errosInsercao.push(`${colaborador.login}: ${error.message}`);
+            } else {
+              totalInseridos++;
             }
+          } else {
+            const { error } = await supabase
+              .from('users')
+              .insert([dadosColaborador]);
 
-            // Se erro do tipo 'vendedor' não permitido, usar 'colaborador'
-            if (singleError?.message?.includes('violates check constraint') && colaborador.tipo === 'vendedor') {
-              const colaboradorComoColaborador = {
-                nome: colaborador.nome,
-                sobrenome: colaborador.sobrenome,
-                login: colaborador.login,
-                password: colaborador.password,
-                cargo: colaborador.cargo,
-                tipo: 'colaborador' as const,
-                primeiro_acesso: colaborador.primeiro_acesso
-              };
-              
-              const result = await supabase
-                .from('users')
-                .insert([colaboradorComoColaborador]);
-              
-              singleError = result.error;
-            }
-
-            if (singleError) {
-              if (singleError.code === '23505') { // Unique constraint violation - login já existe
-                if (sobrescreverExistentes) {
-                  // Tentar atualizar o usuário existente
-                  const { error: updateError } = await supabase
-                    .from('users')
-                    .update({
-                      nome: colaborador.nome,
-                      sobrenome: colaborador.sobrenome,
-                      cargo: colaborador.cargo,
-                      tipo: colaborador.tipo === 'vendedor' && singleError?.message?.includes('violates check constraint') ? 'colaborador' : colaborador.tipo
-                    })
-                    .eq('login', colaborador.login);
-
-                  if (updateError) {
-                    errosInsercao.push(`Erro ao atualizar ${colaborador.login}: ${updateError.message}`);
-                  } else {
-                    errosInsercao.push(`✅ Login ${colaborador.login} já existia - dados atualizados com sucesso`);
-                    totalInseridos++;
-                  }
-                } else {
-                  errosInsercao.push(`❌ Login ${colaborador.login} já existe no sistema (não sobrescrito)`);
-                }
+            if (error) {
+              if (error.code === '23505') {
+                errosInsercao.push(`${colaborador.login}: já existe`);
               } else {
-                errosInsercao.push(`Erro ao inserir ${colaborador.login}: ${singleError.message}`);
+                errosInsercao.push(`${colaborador.login}: ${error.message}`);
               }
             } else {
               totalInseridos++;
             }
           }
-        } else {
-          totalInseridos += data?.length || 0;
+        } catch (err) {
+          errosInsercao.push(`${colaborador.login}: erro desconhecido`);
         }
       }
 
-      if (errosInsercao.length > 0) {
-        setError(`Alguns colaboradores não puderam ser importados:\n${errosInsercao.join('\n')}`);
-      }
-
       if (totalInseridos > 0) {
-        setSuccess(`${totalInseridos} colaborador(es) importado(s) com sucesso!`);
+        setSuccess(`${totalInseridos} colaborador(es) importado(s)!`);
         onSuccess(totalInseridos);
         
-        // Fechar modal após 2 segundos em caso de sucesso
         setTimeout(() => {
           closeModal();
         }, 2000);
       }
 
+      if (errosInsercao.length > 0) {
+        setError(`${errosInsercao.length} erros:\n${errosInsercao.slice(0, 5).join('\n')}`);
+      }
+
     } catch (err) {
-      setError(`Erro durante importação: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
+      setError(`Erro: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
     } finally {
       setIsProcessing(false);
     }
@@ -405,12 +322,12 @@ export default function ImportColaboradoresModal({ isOpen, onClose, onSuccess }:
               </svg>
               <div>
                 <h2 className="text-xl font-bold text-gray-800">Importar Colaboradores</h2>
-                <p className="text-sm text-gray-600">Importe colaboradores através de arquivo CSV</p>
+                <p className="text-sm text-gray-600">Importe via arquivo CSV</p>
               </div>
             </div>
             <button
               onClick={closeModal}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-gray-400 hover:text-gray-600"
               disabled={isProcessing}
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -426,28 +343,17 @@ export default function ImportColaboradoresModal({ isOpen, onClose, onSuccess }:
             <div className="space-y-6">
               {/* Instructions */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="font-semibold text-gray-900 mb-2">Instruções do arquivo CSV:</h3>
+                <h3 className="font-semibold text-gray-900 mb-2">Formato CSV:</h3>
                 <ul className="text-sm text-gray-800 space-y-1">
-                  <li>• Arquivo deve ter extensão .csv</li>
-                  <li>• Separador deve ser ponto e vírgula (;)</li>
-                  <li>• Cabeçalho obrigatório: Nome;Departamento;Cargo;Data de Admissão</li>
-                  <li>• Login será criado automaticamente no formato: nome.sobrenome</li>
-                  <li>• Senha padrão para todos: <strong>r3sup@123</strong></li>
-                  <li>• Cargos com "vendas", "vendedor", "comercial" serão marcados como vendedor</li>
+                  <li>• Separador: ponto e vírgula (;)</li>
+                  <li>• Cabeçalho: Nome;Departamento;Cargo;Data de Admissão</li>
+                  <li>• Login automático: nome.sobrenome</li>
+                  <li>• Senha padrão: <strong>r3sup@123</strong></li>
                 </ul>
-                
-                <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded">
-                  <p className="text-xs text-gray-700">
-                    <strong>💡 Dica para acentos:</strong> O sistema corrige automaticamente caracteres mal codificados como "TÉCNICO", mas se houver problemas, salve o CSV com codificação UTF-8.
-                  </p>
-                </div>
               </div>
 
               {/* File Upload */}
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
                 <input
                   type="file"
                   accept=".csv"
@@ -457,20 +363,22 @@ export default function ImportColaboradoresModal({ isOpen, onClose, onSuccess }:
                   disabled={isProcessing}
                 />
                 <label htmlFor="csv-upload" className="cursor-pointer">
-                  <span className="text-lg font-medium text-gray-900">
-                    {file ? file.name : 'Clique para selecionar arquivo CSV'}
-                  </span>
-                  <br />
-                  <span className="text-sm text-gray-700">ou arraste e solte aqui</span>
+                  <div className="text-lg font-medium text-gray-900 mb-2">
+                    {file ? file.name : 'Selecionar arquivo CSV'}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    Toque para escolher arquivo
+                  </div>
                 </label>
               </div>
 
-              {/* Process Button */}
-              <div className="flex justify-end space-x-3">
+              {/* Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
                 <Button
                   variant="secondary"
                   onClick={closeModal}
                   disabled={isProcessing}
+                  fullWidth
                 >
                   Cancelar
                 </Button>
@@ -478,18 +386,9 @@ export default function ImportColaboradoresModal({ isOpen, onClose, onSuccess }:
                   variant="primary"
                   onClick={processarCSV}
                   disabled={!file || isProcessing}
+                  fullWidth
                 >
-                  {isProcessing ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Processando...
-                    </>
-                  ) : (
-                    'Processar Arquivo'
-                  )}
+                  {isProcessing ? 'Processando...' : 'Processar'}
                 </Button>
               </div>
             </div>
@@ -498,80 +397,67 @@ export default function ImportColaboradoresModal({ isOpen, onClose, onSuccess }:
           {step === 'preview' && (
             <div className="space-y-6">
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <h3 className="font-semibold text-gray-900 mb-2">
-                  Preview dos {previewData.length} colaboradores a serem importados:
+                <h3 className="font-semibold text-gray-900 mb-1">
+                  {previewData.length} colaboradores encontrados
                 </h3>
-                <p className="text-sm text-gray-800">
-                  Revise os dados antes de confirmar a importação
-                </p>
-              </div>
-
-              {/* Preview Table */}
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <div className="max-h-96 overflow-y-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 sticky top-0">
-                      <tr>
-                        <th className="px-4 py-3 text-left font-medium text-gray-900">Nome</th>
-                        <th className="px-4 py-3 text-left font-medium text-gray-900">Login</th>
-                        <th className="px-4 py-3 text-left font-medium text-gray-900">Cargo</th>
-                        <th className="px-4 py-3 text-left font-medium text-gray-900">Tipo</th>
-                        <th className="px-4 py-3 text-left font-medium text-gray-900">Departamento</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {previewData.map((colaborador, index) => (
-                        <tr key={index} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-gray-900">{colaborador.nome} {colaborador.sobrenome}</td>
-                          <td className="px-4 py-3 font-mono text-gray-900">{colaborador.login}</td>
-                          <td className="px-4 py-3 text-gray-900">{colaborador.cargo}</td>
-                          <td className="px-4 py-3">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              colaborador.tipo === 'vendedor' 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-blue-100 text-blue-800'
-                            }`}>
-                              {colaborador.tipo}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-gray-900">{colaborador.departamento}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <p className="text-sm text-gray-800">Revise antes de confirmar</p>
               </div>
 
               {/* Options */}
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 mb-3">Opções de Importação:</h4>
-                <label className="flex items-center space-x-3 cursor-pointer">
+                <label className="flex items-start space-x-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={sobrescreverExistentes}
                     onChange={(e) => setSobrescreverExistentes(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded mt-1"
                   />
                   <div>
-                    <span className="text-sm font-medium text-gray-900">
-                      Atualizar colaboradores existentes
-                    </span>
-                    <p className="text-xs text-gray-600">
-                      {sobrescreverExistentes 
-                        ? "✅ Logins existentes serão atualizados com novos dados (nome, cargo, tipo)" 
-                        : "❌ Logins existentes serão ignorados e reportados como erro"
-                      }
-                    </p>
+                    <div className="text-sm font-medium text-gray-900">
+                      Atualizar existentes
+                    </div>
+                    <div className="text-xs text-gray-600">
+                      {sobrescreverExistentes ? "✅ Atualizará dados" : "❌ Ignorará duplicados"}
+                    </div>
                   </div>
                 </label>
               </div>
 
-              {/* Confirm Button */}
-              <div className="flex justify-end space-x-3">
+              {/* Preview - Mobile friendly */}
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="max-h-60 overflow-y-auto">
+                  {previewData.slice(0, 10).map((colaborador, index) => (
+                    <div key={index} className="p-3 border-b border-gray-100 last:border-b-0">
+                      <div className="font-medium text-gray-900">
+                        {colaborador.nome} {colaborador.sobrenome}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {colaborador.login} • {colaborador.cargo}
+                      </div>
+                      <span className={`inline-block px-2 py-1 rounded text-xs font-medium mt-1 ${
+                        colaborador.tipo === 'vendedor' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {colaborador.tipo}
+                      </span>
+                    </div>
+                  ))}
+                  {previewData.length > 10 && (
+                    <div className="p-3 text-center text-gray-500 text-sm">
+                      ... e mais {previewData.length - 10} colaboradores
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
                 <Button
                   variant="secondary"
                   onClick={() => setStep('upload')}
                   disabled={isProcessing}
+                  fullWidth
                 >
                   Voltar
                 </Button>
@@ -579,8 +465,9 @@ export default function ImportColaboradoresModal({ isOpen, onClose, onSuccess }:
                   variant="success"
                   onClick={importarColaboradores}
                   disabled={isProcessing}
+                  fullWidth
                 >
-                  Confirmar Importação
+                  Importar
                 </Button>
               </div>
             </div>
@@ -588,12 +475,13 @@ export default function ImportColaboradoresModal({ isOpen, onClose, onSuccess }:
 
           {step === 'processing' && (
             <div className="text-center py-12">
-              <svg className="animate-spin h-12 w-12 text-blue-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Importando colaboradores...</h3>
-              <p className="text-gray-600">Aguarde enquanto processamos {previewData.length} registros</p>
+              <div className="animate-spin h-12 w-12 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                Importando...
+              </h3>
+              <p className="text-gray-600">
+                {previewData.length} registros
+              </p>
             </div>
           )}
 
