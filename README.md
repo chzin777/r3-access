@@ -1,36 +1,64 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# R3 Access — Controle de acesso por QR Code
 
-## Getting Started
+Sistema de controle de acesso à portaria da **R3 Suprimentos**: colaboradores, vendedores, clientes e visitantes recebem um QR Code, e o porteiro valida a entrada lendo o código pela câmera do celular.
 
-First, run the development server:
+**Produção:** https://r3-access.vercel.app
+
+## Stack
+
+- [Next.js 15](https://nextjs.org) (App Router) + React 19 + TypeScript
+- Tailwind CSS 4
+- Supabase (banco PostgreSQL)
+- Leitura de QR/código de barras: `jsQR`, `@zxing/browser`, `react-webcam`
+- Geração de QR: `qrcode`
+- `bcryptjs` / `crypto-js` (senhas e tokens)
+
+## Como rodar
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+# crie .env.local com as variáveis abaixo
+npm run dev      # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+> A câmera do navegador só funciona em `localhost` ou HTTPS. Para testar no celular, use o deploy ou um túnel HTTPS.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Variáveis de ambiente (`.env.local`)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variável | Descrição |
+|----------|-----------|
+| `NEXT_PUBLIC_SUPABASE_URL` | URL do projeto Supabase |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Chave pública (anon) do Supabase |
 
-## Learn More
+### Banco de dados
 
-To learn more about Next.js, take a look at the following resources:
+Rode os scripts SQL no Supabase, nesta ordem:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. `database/create_database_schema.sql` (ou `create_basic_tables.sql` para o mínimo)
+2. `database/vehicle_schema.sql` (veículos)
+3. `database/migrations/*.sql` (controle de primeiro acesso e perfil vendedor)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Perfis e telas
 
-## Deploy on Vercel
+| Rota | Quem usa | Função |
+|------|----------|--------|
+| `/` | Todos | Login |
+| `/admin`, `/admin-portal` | Administrador | Cadastros, importação de colaboradores, gerar QR de cliente |
+| `/porteiro-portal`, `/scan` | Porteiro | Leitura de QR e liberação de entrada |
+| `/colaborador-portal` | Colaborador | QR pessoal de acesso |
+| `/vendedor-portal` | Vendedor | QR pessoal e de clientes |
+| `/gerar-qrcode-visitante` | Recepção | QR temporário para visitante |
+| `/qrcode`, `/qrcode-teste` | Suporte | Visualização e teste de QR |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Importação de colaboradores
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Colaboradores podem ser importados por CSV no painel admin. Modelo em `exemplo_colaboradores.csv` e instruções em `IMPORTACAO_COLABORADORES.md`.
+
+## Outros documentos
+
+- `INSTRUCOES_TESTE.md` — roteiro de teste do sistema
+- `DEBUG_CAMERA.md` — solução de problemas de câmera
+
+## Deploy
+
+Vercel — configure as variáveis do Supabase no painel do projeto.
